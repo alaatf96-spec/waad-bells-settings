@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<style>
+:root{--navy:#1b1d4c;--navy2:#2a3077;--gold:#ffc21a;--paper:#f4f7ff;--line:#d6dcf3;--muted:#59609a;--green:#17733a;--red:#b3261e;--white:#fff}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--paper);color:var(--navy);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans Arabic",sans-serif}
+header{background:var(--navy);color:#fff;padding:14px 16px 12px;position:sticky;top:0;z-index:5}
+header h1{margin:0;font-size:20px}
+header small{color:#c9cff5}
+main{max-width:640px;margin:0 auto;padding:12px 16px 120px}
+h2{font-size:15px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:22px 0 8px}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;background:#e3e8fb;border-radius:14px;padding:5px}
+.seg button{border:0;border-radius:10px;padding:11px 4px;font:inherit;font-weight:700;color:var(--navy);background:transparent;cursor:pointer}
+.seg button[aria-pressed="true"]{background:#fff;box-shadow:0 2px 0 var(--navy)}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.big{display:flex;align-items:center;gap:10px;min-height:62px;padding:12px 14px;border-radius:16px;border:0;font:inherit;font-weight:800;font-size:17px;color:#fff;background:var(--navy2);cursor:pointer;text-align:start;box-shadow:0 3px 0 var(--navy)}
+.big .i{font-size:24px}
+.big.adhan{background:#0f6b4f}
+.big.wide{grid-column:1/-1}
+.big:active{transform:translateY(2px);box-shadow:none}
+.big[disabled]{opacity:.5}
+.big.armed{outline:4px solid var(--gold)}
+.card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px}
+textarea{width:100%;min-height:84px;border:1px solid var(--line);border-radius:12px;padding:10px;font:inherit;resize:vertical}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.pill{border:1px solid var(--line);background:#fff;border-radius:99px;padding:7px 12px;font:inherit;font-weight:700;color:var(--navy);cursor:pointer}
+.pill[aria-pressed="true"]{background:var(--navy);color:#fff;border-color:var(--navy)}
+.send{background:var(--green)}
+.rec{background:var(--red)}
+.rec.on{animation:pulse 1s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 8px rgba(179,38,30,.25)}}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+#stopbar{position:fixed;left:0;right:0;bottom:0;background:linear-gradient(transparent,var(--paper) 30%);padding:18px 16px max(16px,env(safe-area-inset-bottom))}
+#stop{width:100%;max-width:640px;margin:0 auto;display:block;background:var(--red);font-size:19px;text-align:center;justify-content:center}
+#status{margin-top:12px;border-radius:14px;padding:12px 14px;background:#fff7d6;border:1px solid #f0d77a;display:none;font-weight:700}
+#status.err{background:#fde8e6;border-color:#f3b4ad;color:var(--red)}
+.log div{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px dashed var(--line);font-size:14px}
+.log div:first-child{border-top:0}
+.log b{font-weight:700}
+audio{width:100%;margin-top:8px}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+<header><h1>🔔 Waad Bells · Control</h1><small id="who">Loading…</small></header>
+<main>
+  <div id="status" role="status" aria-live="polite"></div>
+
+  <h2>Which boards</h2>
+  <div class="seg" id="boards">
+    <button data-b="all" aria-pressed="true">All boards</button>
+    <button data-b="primary" aria-pressed="false">Primary G4–6</button>
+    <button data-b="secondary" aria-pressed="false">G7–12</button>
+  </div>
+
+  <h2>Ring now</h2>
+  <div class="grid">
+    <button class="big" data-sound="calm"><span class="i">🎶</span>Calm bell</button>
+    <button class="big" data-sound="bell"><span class="i">🔔</span>School bell</button>
+    <button class="big" data-sound="end"><span class="i">🏁</span>End-of-day bell</button>
+    <button class="big" data-sound="chime"><span class="i">✨</span>Soft chime</button>
+    <button class="big adhan wide" data-sound="adhan"><span class="i">🕌</span>Adhan (tap twice)</button>
+  </div>
+
+  <h2>Recorded announcements</h2>
+  <div class="grid" id="clips"><p class="muted small">Loading…</p></div>
+
+  <h2>Voice message</h2>
+  <div class="card">
+    <p class="muted small" style="margin:0 0 10px">Tap to start, speak, tap again to stop. Listen, then send. Up to 2 minutes.</p>
+    <button class="big rec wide" id="rec" style="width:100%"><span class="i">🎙️</span><span id="recLabel">Start recording</span></button>
+    <div id="fallback" class="hidden">
+      <p class="small">This phone doesn't let the page use the microphone. Record with your phone instead:</p>
+      <input type="file" id="upload" accept="audio/*" capture>
+    </div>
+    <audio id="preview" controls class="hidden"></audio>
+    <div class="row hidden" id="voiceRow">
+      <button class="big send" id="sendVoice"><span class="i">📣</span>Send to boards</button>
+      <button class="pill" id="discard">Discard</button>
+    </div>
+  </div>
+
+  <h2>Typed message (read aloud)</h2>
+  <div class="card">
+    <textarea id="text" maxlength="400" placeholder="e.g. All Grade 5 students, please go to the main hall."></textarea>
+    <div class="row">
+      <button class="pill" data-lang="en" aria-pressed="true">English voice</button>
+      <button class="pill" data-lang="ar" aria-pressed="false">صوت عربي</button>
+      <span style="flex:1"></span>
+      <button class="big send" id="sendText"><span class="i">🗣️</span>Send</button>
+    </div>
+    <p class="muted small">A chime plays first, then the board reads the message twice.</p>
+  </div>
+
+  <h2>Boards</h2>
+  <div class="card">
+    <p id="bsum" class="small" style="margin:0 0 10px">Checking…</p>
+    <button class="big wide" id="sync" style="width:100%"><span class="i">🔄</span>Refresh the timetable on the boards</button>
+    <p class="muted small">Use this after you change the timetable sheet: the chosen boards read it again within about a minute. They also do it by themselves every 3 hours.</p>
+    <details><summary class="small">Every board</summary><div class="log" id="blist"></div></details>
+  </div>
+
+  <h2>Recent</h2>
+  <div class="card log" id="log"><p class="muted small">Nothing sent yet.</p></div>
+  <p class="muted small" id="ver"></p>
+</main>
+<div id="stopbar"><button class="big" id="stop">⏹ STOP ALL BOARDS</button></div>
+
+<script>
+var S = { boards: 'all', lang: 'en', lead: 20, voice: null, armed: null, timer: 0 };
+function $(s) { return document.querySelector(s); }
+function $$(s) { return Array.prototype.slice.call(document.querySelectorAll(s)); }
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+function call(fn) {
+  var args = Array.prototype.slice.call(arguments, 1);
+  return new Promise(function (ok) {
+    var r = google.script.run.withSuccessHandler(ok).withFailureHandler(function (e) { ok({ ok: false, message: (e && e.message) || 'No connection. Try again.' }); });
+    r[fn].apply(r, args);
+  });
+}
+function time(ms) { var d = new Date(ms); return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2) + ':' + ('0' + d.getSeconds()).slice(-2); }
+function boardsName(b) { return b === 'primary' ? 'Primary G4–6 boards' : b === 'secondary' ? 'G7–12 boards' : 'all boards'; }
+
+function status(msg, err) { var s = $('#status'); s.style.display = 'block'; s.className = err ? 'err' : ''; s.innerHTML = msg; }
+function sent(res, what) {
+  if (!res || !res.ok) { status('⚠️ ' + esc(res && res.message || 'Not sent.'), true); return; }
+  var c = res.cmd; clearInterval(S.timer);
+  if (c.kind === 'stop') { status('⏹ Stop sent to ' + boardsName(c.boards) + '. Boards go quiet within about 15 seconds.'); load(); return; }
+  if (c.kind === 'sync') { status('🔄 ' + boardsName(c.boards).charAt(0).toUpperCase() + boardsName(c.boards).slice(1) + ' will read the timetable again within about a minute.'); load(); return; }
+  var tick = function () {
+    var left = Math.round((c.startAt - Date.now()) / 1000);
+    status('✅ ' + esc(what) + ' → ' + boardsName(c.boards) + '<br>' + (left > 0 ? 'Plays on every board at ' + time(c.startAt) + ' (in ' + left + ' s)' : 'Playing now on the boards.'));
+    if (left <= 0) clearInterval(S.timer);
+  };
+  tick(); S.timer = setInterval(tick, 1000); load();
+}
+
+function draw(boot) {
+  if (!boot.ok) { $('#who').textContent = boot.message || 'Not allowed.'; $$('main button, #stop').forEach(function (b) { b.disabled = true; }); status('⚠️ ' + esc(boot.message || 'Not allowed.'), true); return; }
+  S.lead = boot.lead;
+  $('#who').textContent = 'Signed in as ' + boot.me.name + ' · boards play ' + boot.lead + ' s after you press';
+  $('#clips').innerHTML = boot.clips.length ? boot.clips.map(function (c) { return '<button class="big" data-clip="' + esc(c.id) + '"><span class="i">📢</span>' + esc(c.label) + '</button>'; }).join('')
+    : '<p class="muted small">No clips yet. Add recordings in the Clips tab of the "Waad Bells – Control" sheet.</p>';
+  $('#log').innerHTML = boot.log.length ? boot.log.map(function (l) { return '<div><span><b>' + esc(l.what === 'sound' ? l.detail : l.what === 'say' ? '“' + l.detail.slice(0, 60) + '”' : l.what === 'clip' ? l.detail : l.what === 'voice' ? 'Voice message' : l.what === 'sync' ? 'Timetable refresh' : 'Stop') + '</b> · ' + esc(boardsName(l.boards)) + '</span><span class="muted">' + esc(l.by) + ' ' + time(l.at) + '</span></div>'; }).join('') : '<p class="muted small">Nothing sent yet.</p>';
+  $('#ver').textContent = 'Waad Bells control ' + boot.version;
+  drawBoards(boot.boards || [], boot.now || Date.now());
+}
+/* Which boards are listening, and which app version each one runs (so you can see an update reached them all). */
+function vnum(v) { return String(v || '0').split('.').map(function (x) { return ('000' + (parseInt(x, 10) || 0)).slice(-4); }).join('.'); }
+function ago(ms, now) {
+  var m = Math.round((now - ms) / 60000);
+  if (!ms) return 'never'; if (m < 2) return 'now'; if (m < 60) return m + ' min ago';
+  var h = Math.round(m / 60); return h < 24 ? h + ' h ago' : Math.round(h / 24) + ' days ago';
+}
+function drawBoards(list, now) {
+  if (!list.length) { $('#bsum').innerHTML = 'No board has checked in yet. Boards appear here once they run Waad Bells 1.2 or later with the control link set.'; $('#blist').innerHTML = ''; return; }
+  list = list.slice().sort(function (a, b) { return String(a.name).localeCompare(String(b.name), undefined, { numeric: true, sensitivity: 'base' }); });
+  var live = list.filter(function (b) { return now - b.lastSeen < 2 * 60 * 1000; }).length;
+  var newest = list.map(function (b) { return b.version; }).sort(function (a, b) { return vnum(b) < vnum(a) ? -1 : 1; })[0];
+  var behind = list.filter(function (b) { return b.version !== newest; });
+  $('#bsum').innerHTML = '<b>' + list.length + ' boards</b> · ' + (live === list.length ? '✅ all listening now' : live + ' listening now, <b>' + (list.length - live) + ' not heard from</b>') +
+    '<br>' + (behind.length ? '⏳ ' + (list.length - behind.length) + ' on app ' + esc(newest) + ', <b>' + behind.length + ' on an older version</b>' : '✅ all on app ' + esc(newest));
+  $('#blist').innerHTML = list.map(function (b) {
+    var on = now - b.lastSeen < 2 * 60 * 1000;
+    return '<div><span>' + (on ? '🟢 ' : '⚪ ') + '<b>' + esc(b.name) + '</b>' + (b.group ? ' · ' + esc(b.group === 'primary' ? 'G4–6' : 'G7–12') : '') + '</span><span class="muted">' + (b.version !== newest ? '⏳ ' : '') + 'v' + esc(b.version) + ' · ' + ago(b.lastSeen, now) + '</span></div>';
+  }).join('');
+}
+function load() { call('ctlBootstrap').then(draw); }
+
+document.addEventListener('click', function (e) {
+  var b = e.target.closest('button'); if (!b || b.disabled) return;
+  if (b.dataset.b) { S.boards = b.dataset.b; $$('#boards button').forEach(function (x) { x.setAttribute('aria-pressed', x === b); }); return; }
+  if (b.dataset.lang) { S.lang = b.dataset.lang; $$('[data-lang]').forEach(function (x) { x.setAttribute('aria-pressed', x === b); }); $('#text').dir = S.lang === 'ar' ? 'rtl' : 'ltr'; return; }
+  if (b.dataset.sound) {
+    var label = b.textContent.replace(' (tap twice)', '').trim();
+    if (b.dataset.sound === 'adhan' && S.armed !== b) { // the adhan needs a second tap
+      S.armed = b; b.classList.add('armed'); b.lastChild.textContent = 'Tap again to play the adhan';
+      setTimeout(function () { if (S.armed === b) { S.armed = null; b.classList.remove('armed'); b.lastChild.textContent = 'Adhan (tap twice)'; } }, 4000);
+      return;
+    }
+    S.armed = null; b.classList.remove('armed'); if (b.dataset.sound === 'adhan') b.lastChild.textContent = 'Adhan (tap twice)';
+    b.disabled = true; call('ctlSend', { kind: 'sound', sound: b.dataset.sound, boards: S.boards }).then(function (r) { b.disabled = false; sent(r, label); });
+    return;
+  }
+  if (b.dataset.clip) { b.disabled = true; var l = b.textContent.trim(); call('ctlSend', { kind: 'clip', clipId: b.dataset.clip, boards: S.boards }).then(function (r) { b.disabled = false; sent(r, l); }); return; }
+  if (b.id === 'sendText') { b.disabled = true; call('ctlSend', { kind: 'say', text: $('#text').value, lang: S.lang, boards: S.boards }).then(function (r) { b.disabled = false; if (r.ok) $('#text').value = ''; sent(r, 'Typed message'); }); return; }
+  if (b.id === 'sync') { b.disabled = true; call('ctlSend', { kind: 'sync', boards: S.boards }).then(function (r) { b.disabled = false; sent(r, 'Timetable refresh'); }); return; }
+  if (b.id === 'stop') { b.disabled = true; call('ctlSend', { kind: 'stop', boards: S.boards }).then(function (r) { b.disabled = false; sent(r, 'Stop'); }); return; }
+  if (b.id === 'rec') { toggleRec(); return; }
+  if (b.id === 'discard') { clearVoice(); return; }
+  if (b.id === 'sendVoice') {
+    if (!S.voice) return; b.disabled = true; status('Uploading your message…');
+    var fr = new FileReader();
+    fr.onload = function () { call('ctlSendVoice', String(fr.result).split(',')[1], S.voice.type, S.boards).then(function (r) { b.disabled = false; if (r.ok) clearVoice(); sent(r, 'Voice message'); }); };
+    fr.readAsDataURL(S.voice);
+  }
+});
+
+/* ---------- recording ---------- */
+var rec = null, chunks = [], recTimer = 0;
+function pickType() { var t = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus']; for (var i = 0; i < t.length; i++) if (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t[i])) return t[i]; return ''; }
+function toggleRec() {
+  if (rec && rec.state === 'recording') { rec.stop(); return; }
+  if (!navigator.mediaDevices || !window.MediaRecorder) { showFallback(); return; }
+  navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }).then(function (stream) {
+    var type = pickType(); chunks = [];
+    rec = type ? new MediaRecorder(stream, { mimeType: type, audioBitsPerSecond: 64000 }) : new MediaRecorder(stream);
+    rec.ondataavailable = function (ev) { if (ev.data && ev.data.size) chunks.push(ev.data); };
+    rec.onstop = function () {
+      clearInterval(recTimer); stream.getTracks().forEach(function (t) { t.stop(); });
+      $('#rec').classList.remove('on'); $('#recLabel').textContent = 'Record again';
+      setVoice(new Blob(chunks, { type: (rec.mimeType || type || 'audio/webm').split(';')[0] }));
+    };
+    rec.start(); $('#rec').classList.add('on');
+    var t0 = Date.now();
+    recTimer = setInterval(function () { var s = Math.round((Date.now() - t0) / 1000); $('#recLabel').textContent = 'Recording… ' + s + ' s · tap to stop'; if (s >= 120) rec.stop(); }, 250);
+  }).catch(showFallback);
+}
+function showFallback() { $('#rec').classList.add('hidden'); $('#fallback').classList.remove('hidden'); }
+$('#upload').addEventListener('change', function () { var f = this.files && this.files[0]; if (f) setVoice(f); });
+function setVoice(blob) { S.voice = blob; var a = $('#preview'); a.src = URL.createObjectURL(blob); a.classList.remove('hidden'); $('#voiceRow').classList.remove('hidden'); }
+function clearVoice() { S.voice = null; $('#preview').classList.add('hidden'); $('#voiceRow').classList.add('hidden'); $('#recLabel').textContent = 'Start recording'; $('#upload').value = ''; }
+
+load();
+setInterval(load, 30000);
+</script>
+</body>
+</html>
