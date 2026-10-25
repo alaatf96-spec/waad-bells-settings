@@ -1,0 +1,21 @@
+kind,group,days,time,early,date,label,value,active
+setting,,,,,,days,SUN-THU,
+setting,,,,,,ringEarly,2,
+setting,,,,,,volume,80,
+setting,,,,,,adhan,off,
+setting,,,,,,adhanVolume,30,
+# Grades 4-6, Sunday to Wednesday (2025-2026 class schedules): a chime 2 minutes before each class ends
+bell,primary,SUN-WED,09:00,,,End of Period 1,chime,TRUE
+bell,primary,SUN-WED,10:25,,,End of Period 2,chime,TRUE
+bell,primary,SUN-WED,11:25,,,End of Period 3,chime,TRUE
+bell,primary,SUN-WED,12:40,,,End of Period 4,chime,TRUE
+bell,primary,SUN-WED,12:40,0,,Prayer break (adhan),adhan,TRUE
+bell,primary,SUN-WED,13:45,,,End of Period 5,chime,TRUE
+bell,primary,SUN-WED,14:30,,,End of Period 6,chime,TRUE
+# Grades 4-6, Thursday
+bell,primary,THU,08:40,,,End of Period 1,chime,TRUE
+bell,primary,THU,09:20,,,End of Period 2,chime,TRUE
+bell,primary,THU,10:30,,,End of Period 3,chime,TRUE
+bell,primary,THU,11:10,,,End of Period 4,chime,TRUE
+bell,primary,THU,12:05,,,End of Period 5,chime,TRUE
+bell,primary,THU,12:45,,,End of Period 6,chime,TRUE
